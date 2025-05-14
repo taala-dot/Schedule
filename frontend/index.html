@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Schedule Generator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>School Schedule Generator</h1>
+        
+        <div class="section">
+            <h2>Add Teacher</h2>
+            <form id="teacherForm">
+                <input type="text" id="teacherName" placeholder="Teacher Name" required>
+                <div id="teacherSubjects">
+                    <div class="subject-input">
+                        <input type="text" placeholder="Subject Name" required>
+                        <input type="number" placeholder="Hours per Week" required>
+                    </div>
+                </div>
+                <button type="button" onclick="addSubjectInput()">Add Subject</button>
+                <button type="submit">Add Teacher</button>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>Add Class</h2>
+            <form id="classForm">
+                <input type="text" id="className" placeholder="Class Name (e.g., 8A)" required>
+                <div id="classSubjects">
+                    <div class="subject-input">
+                        <input type="text" placeholder="Subject Name" required>
+                        <input type="number" placeholder="Hours per Week" required>
+                    </div>
+                </div>
+                <button type="button" onclick="addClassSubjectInput()">Add Subject</button>
+                <button type="submit">Add Class</button>
+            </form>
+        </div>
+
+        <div class="section">
+            <h2>Generate Schedule</h2>
+            <button onclick="generateSchedule()">Generate Schedule</button>
+        </div>
+
+        <div class="section">
+            <h2>Schedule Results</h2>
+            <div id="scheduleResults"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+
+        function addSubjectInput() {
+            const container = document.getElementById('teacherSubjects');
+            const div = document.createElement('div');
+            div.className = 'subject-input';
+            div.innerHTML = `
+                <input type="text" placeholder="Subject Name" required>
+                <input type="number" placeholder="Hours per Week" required>
+            `;
+            container.appendChild(div);
+        }
+
+        function addClassSubjectInput() {
+            const container = document.getElementById('classSubjects');
+            const div = document.createElement('div');
+            div.className = 'subject-input';
+            div.innerHTML = `
+                <input type="text" placeholder="Subject Name" required>
+                <input type="number" placeholder="Hours per Week" required>
+            `;
+            container.appendChild(div);
+        }
+
+        document.getElementById('teacherForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('teacherName').value;
+            const subjects = Array.from(document.getElementById('teacherSubjects').children).map(div => {
+                const inputs = div.getElementsByTagName('input');
+                return {
+                    name: inputs[0].value,
+                    hours_per_week: parseInt(inputs[1].value)
+                };
+            });
+
+            try {
+                const response = await fetch(`${API_URL}/teachers`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        subjects,
+                        available_slots: ['MONDAY_1', 'MONDAY_2', 'MONDAY_3', 'MONDAY_4', 'MONDAY_5',
+                                       'TUESDAY_1', 'TUESDAY_2', 'TUESDAY_3', 'TUESDAY_4', 'TUESDAY_5',
+                                       'WEDNESDAY_1', 'WEDNESDAY_2', 'WEDNESDAY_3', 'WEDNESDAY_4', 'WEDNESDAY_5',
+                                       'THURSDAY_1', 'THURSDAY_2', 'THURSDAY_3', 'THURSDAY_4', 'THURSDAY_5',
+                                       'FRIDAY_1', 'FRIDAY_2', 'FRIDAY_3', 'FRIDAY_4', 'FRIDAY_5'],
+                        preferences: []
+                    })
+                });
+                const data = await response.json();
+                alert('Teacher added successfully!');
+            } catch (error) {
+                alert('Error adding teacher: ' + error.message);
+            }
+        });
+
+        document.getElementById('classForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('className').value;
+            const subjects = Array.from(document.getElementById('classSubjects').children).map(div => {
+                const inputs = div.getElementsByTagName('input');
+                return {
+                    name: inputs[0].value,
+                    hours_per_week: parseInt(inputs[1].value)
+                };
+            });
+
+            try {
+                const response = await fetch(`${API_URL}/classes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, subjects })
+                });
+                const data = await response.json();
+                alert('Class added successfully!');
+            } catch (error) {
+                alert('Error adding class: ' + error.message);
+            }
+        });
+
+        async function generateSchedule() {
+            try {
+                const response = await fetch(`${API_URL}/schedule`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                const resultsDiv = document.getElementById('scheduleResults');
+                resultsDiv.innerHTML = '<h3>Generated Schedule</h3>';
+                
+                // Display teacher schedules
+                resultsDiv.innerHTML += '<h4>Teacher Schedules</h4>';
+                for (const [teacher, slots] of Object.entries(data.teacher_schedules)) {
+                    resultsDiv.innerHTML += `<p><strong>${teacher}:</strong> ${slots.map(s => 
+                        `${s.day} Lesson ${s.number}`).join(', ')}</p>`;
+                }
+
+                // Display class schedules
+                resultsDiv.innerHTML += '<h4>Class Schedules</h4>';
+                for (const [class_, slots] of Object.entries(data.class_schedules)) {
+                    resultsDiv.innerHTML += `<p><strong>${class_}:</strong> ${slots.map(s => 
+                        `${s.day} Lesson ${s.number}`).join(', ')}</p>`;
+                }
+
+                resultsDiv.innerHTML += `<p><strong>Schedule Score:</strong> ${data.score}</p>`;
+            } catch (error) {
+                alert('Error generating schedule: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html> 
